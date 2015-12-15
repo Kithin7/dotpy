@@ -1,0 +1,25 @@
+version = "1.0A"
+yes = ["y", 'yes', 'yee', 'ye', 'yah', 'yeah']
+no = ["n", "no", "nah", "noda"]
+print "Welcome to Quad. Calc. %s!" %version
+
+a = input("Please enter an 'a' value: ")
+b = input("Please enter an 'b' value: ")
+c = input("Please enter an 'c' value: ")
+print a
+print b
+print c
+check_abc = input("Are the following values correct? ")
+if check_abc in yes":
+  if a < 0:
+    print "The parabola is upside-down."
+  elif a > 0:
+    print "The parabola is rightside-up."
+  elif a == 0:
+    print "The given equation is linear."
+  
+else:
+  print "Please re-enter the values"
+  exit_ = input("Press any key to quit. ")
+  if exit_ != "abcdefhijklmnopqrstuvwxyz":
+    print "Bye!"
