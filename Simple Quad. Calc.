@@ -50,9 +50,10 @@ elif sv == 2:
     print ("Please re-enter the values")
     exit_ = input("Press any key to quit.")
     if exit_ != "":
+      
       print("")
       
 else:
-  exit_ = input("Press any key to quit.")
+  exit_ = input("Invalid entry - Press any key to quit.")
   if exit_ != "":
     print("")
