@@ -100,7 +100,7 @@ def findsets(table):
                 # could look at the table for a 3rd card with the same number and no card is there,
                 # then skip and go to the next pair of cards.
                 # but that seems a little complicated and idk how much time that will actually save...
-            if i < j:  # skip comparing everything twice :)
+            if i < j:  # skip comparing everything twice
                 # number
                 if table[i].number == table[j].number:
                     dummy_card[0] = table[i].number
@@ -135,7 +135,7 @@ def findsets(table):
 
                 # check if dummy card is on the table
                 for m in range(2, len(table)):
-                    if m != i and m != j:  # skip the 2 picked cards
+                    if m != i and m != j and m > j:  # skip the 2 picked cards
                         if table[m].number == dummy_card[0]:
                             if table[m].fill == dummy_card[1]:
                                 if table[m].color == dummy_card[2]:
@@ -152,11 +152,13 @@ if __name__ == "__main__":
     pg.font.init()
 
     # colors
+    white = (255, 255, 255)
     ltgray1 = (169, 183, 198)
     gray1 = (128, 128, 128)
     gray2 = (60, 63, 65)
     dkgray1 = (49, 51, 53)
     dkgray2 = (43, 43, 43)
+    black = (0, 0, 0)
 
     pixel_font = pg.font.SysFont('Celtic Time', 32)
 
@@ -185,6 +187,11 @@ if __name__ == "__main__":
     opt_btn = Button(resolution[0]-78-pad, pad, '_assets/opt_btn.png', scale/2)
 
     # solo/multi state
+    mat = pg.Surface((4 * pad + 3 * card_x, (size / 3 + 1) * pad + (size / 3) * card_y))
+    mat.fill(gray1)
+    blank_card = pg.Surface((card_x, card_y))
+    blank_card.fill(white)
+
     select_img = '_assets/select_frame.png'
     select_btns = []
     x, y = card_x-8, 2*card_y-8
@@ -260,11 +267,16 @@ if __name__ == "__main__":
         elif gamemode_solo:
 
             # mat for cards -- adjusts to size
-            mat = pg.Surface((4 * pad + 3 * card_x, (size/3+1) * pad + (size/3) * card_y))
-            mat.fill(gray1)
             screen.blit(mat, (card_x-pad, 2*card_y-pad, 4*pad+3*card_x, 5*pad+4*card_y))
+            # mouse pos
             screen.blit(pg.font.Font.render(pixel_font, str(pg.mouse.get_pos()), 0, ltgray1),
                         (2, resolution[1]-28))
+            # timer
+            screen.blit(pg.font.Font.render(pixel_font, ('-Game Clock-'), 0, ltgray1),
+                        (2*card_x+1.5*pad, card_y-pad))
+            # points
+            screen.blit(pg.font.Font.render(pixel_font, ('Points: '+str(collected_sets)), 0, ltgray1),
+                        (2*card_x+1.5*pad, card_y+2*pad, 0, 0))
 
             # add size# of cards to table group
             try:
@@ -283,6 +295,8 @@ if __name__ == "__main__":
             # check for sets in table group
             sets = findsets(table)
             num_sets = len(sets)
+            if num_sets < 1:
+                size += 3
             num_sets_txt = pg.font.Font.render(pixel_font,
                                                'Sets on table: ' + str(num_sets),
                                                0,
@@ -295,7 +309,10 @@ if __name__ == "__main__":
             for r in range(0, int(size/3)):
                 for c in range(0, 3):
                     # draw cards
-                    screen.blit(table[t].image, (x, y, card_x, card_y))
+                    try:
+                        screen.blit(table[t].image, (x, y, card_x, card_y))
+                    except IndexError: #this is to handle when the deck is running out of cards
+                        screen.blit(blank_card, (x, y, card_x, card_y))
 
                     # enable selection buttons
                     select_btns[t].enable = True
@@ -323,23 +340,35 @@ if __name__ == "__main__":
                 # select 3 cards
             # check set
             if set_call:
+                # set_call timer
+                screen.blit(pg.font.Font.render(pixel_font, ('-SET Timer-'), 0, ltgray1),
+                            (4*card_x+4*pad+2*pad, card_y+2*pad))
                 if set_check_btn.draw() and len(selected_cards) == 3:  # click to confirm selected cards
                     # convert select_btn to card
                     selections_to_cards.append(table[select_btns.index(selected_cards[0])])
                     selections_to_cards.append(table[select_btns.index(selected_cards[1])])
                     selections_to_cards.append(table[select_btns.index(selected_cards[2])])
+                    print(num_sets)
+                    pprint.pprint(sets)
+                    print(len(table))
+                    pprint.pprint(table)
+                    print(len(deck))
                     if len(findsets(selections_to_cards)) > 0:  # correct :)
                         collected_sets += 1
-                        for i in range(0, 3):
-                            # add to discard first, then remove from table and deck
-                            table[select_btns.index(selected_cards[i])].add(discard_group)
-                            deck[select_btns.index(selected_cards[i])].remove(deck_group)
-                            deck.remove(deck[select_btns.index(selected_cards[i])])
-                            table[select_btns.index(selected_cards[i])].remove(table_group)
+                        # add to discard & remove from table and deck
+                        for card in selections_to_cards:
+                            discard_group.add(card)
+                            table_group.empty()
+                            deck_group.remove(card)
+                            deck.remove(card)
+
                         # update lists
                         discard = discard_group.sprites()
                         table = table_group.sprites()
                         # don't update deck bc it was keeping the og order and reshuffling would mess up the table
+
+                        # reset size
+                        size = 12
 
                         # clean up / prep for next
                         clean_up = True
@@ -360,7 +389,6 @@ if __name__ == "__main__":
                         select_btns[select_btns.index(selected_cards[2])].view = False
                         selected_cards = []
 
-                        # new table
                         # done! back to game
                         set_call = False
                         clean_up = False
