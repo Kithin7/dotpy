@@ -187,6 +187,7 @@ if __name__ == "__main__":
     opt_btn = Button(resolution[0]-78-pad, pad, '_assets/opt_btn.png', scale/2)
 
     # solo/multi state
+    size = 12
     mat = pg.Surface((4 * pad + 3 * card_x, (size / 3 + 1) * pad + (size / 3) * card_y))
     mat.fill(gray1)
     blank_card = pg.Surface((card_x, card_y))
@@ -230,6 +231,7 @@ if __name__ == "__main__":
     # game state variables
     run = True
     main_menu = True
+    game_clock = 0
     gamemode_solo = False
     solo_endscreen = False
     gamemode_multi = False
@@ -272,10 +274,13 @@ if __name__ == "__main__":
             screen.blit(pg.font.Font.render(pixel_font, str(pg.mouse.get_pos()), 0, ltgray1),
                         (2, resolution[1]-28))
             # timer
-            screen.blit(pg.font.Font.render(pixel_font, ('-Game Clock-'), 0, ltgray1),
-                        (2*card_x+1.5*pad, card_y-pad))
+            game_clock += float(clock.get_time())/1000
+            game_clock_min = round(game_clock/60)
+            game_clock_sec = round(game_clock % 60)
+            screen.blit(pg.font.Font.render(pixel_font, 'Game Time:  ' + str(game_clock_min) + ':' + str(game_clock_sec),
+                                            0, ltgray1), (2*card_x+1.5*pad, card_y-pad))
             # points
-            screen.blit(pg.font.Font.render(pixel_font, ('Points: '+str(collected_sets)), 0, ltgray1),
+            screen.blit(pg.font.Font.render(pixel_font, ('Points:  '+str(collected_sets)), 0, ltgray1),
                         (2*card_x+1.5*pad, card_y+2*pad, 0, 0))
 
             # add size# of cards to table group
@@ -336,13 +341,19 @@ if __name__ == "__main__":
             # set_call_btn
             if set_call_btn.draw():  # SET called on click
                 set_call = True  # enable selecting cards
+                set_call_time = 12  # idk like 12 sec?
                 # start timer
                 # select 3 cards
             # check set
             if set_call:
                 # set_call timer
-                screen.blit(pg.font.Font.render(pixel_font, ('-SET Timer-'), 0, ltgray1),
+                set_call_time -= float(clock.get_time())/1000
+                screen.blit(pg.font.Font.render(pixel_font, str(round(set_call_time, 1)), 0, ltgray1),
                             (4*card_x+4*pad+2*pad, card_y+2*pad))
+                if set_call_time <= 0:
+                    pass
+
+                # select 3 and check
                 if set_check_btn.draw() and len(selected_cards) == 3:  # click to confirm selected cards
                     # convert select_btn to card
                     selections_to_cards.append(table[select_btns.index(selected_cards[0])])
@@ -353,6 +364,7 @@ if __name__ == "__main__":
                     print(len(table))
                     pprint.pprint(table)
                     print(len(deck))
+
                     if len(findsets(selections_to_cards)) > 0:  # correct :)
                         collected_sets += 1
                         # add to discard & remove from table and deck
@@ -396,6 +408,7 @@ if __name__ == "__main__":
             # end condition solo
             if len(deck) == 0 and num_sets == 0:
                 solo_endscreen = True
+
                 # high score = #sets/time = ##.# sets/minute
 
         # multiplayer
@@ -414,6 +427,8 @@ if __name__ == "__main__":
             # quit
             if event.type == pg.QUIT:
                 run = False
+
+        # update stuff like the display and the clock
         pg.display.update()
         clock.tick(fps)
 
