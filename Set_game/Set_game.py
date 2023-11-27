@@ -1,6 +1,6 @@
 from random import shuffle as shuffle
 import pygame as pg
-import os.path
+import time
 import pprint
 
 
@@ -161,6 +161,7 @@ if __name__ == "__main__":
     black = (0, 0, 0)
 
     pixel_font = pg.font.SysFont('Celtic Time', 32)
+    pixel_font_big = pg.font.SysFont('Celtic Time', 120)
 
     # constants for drawing
     scale = 4  # changing this might break a lot of stuff, BTW
@@ -188,11 +189,13 @@ if __name__ == "__main__":
 
     # solo/multi state
     size = 12
+    # mat bg
     mat = pg.Surface((4 * pad + 3 * card_x, (size / 3 + 1) * pad + (size / 3) * card_y))
     mat.fill(gray1)
+    # blank card for at end of deck
     blank_card = pg.Surface((card_x, card_y))
-    blank_card.fill(white)
-
+    blank_card.fill(gray1)
+    # setting up the selection buttons
     select_img = '_assets/select_frame.png'
     select_btns = []
     x, y = card_x-8, 2*card_y-8
@@ -208,25 +211,16 @@ if __name__ == "__main__":
         y += card_y + pad
     set_call_btn = Button(4*card_x+4*pad+2*pad, 2*card_y-pad, '_assets/set_call_btn.png', scale/2)
     set_check_btn = Button(4 * card_x + 4 * pad + 2 * pad, 2 * card_y - pad, '_assets/set_check_btn.png', scale / 2)
+    # end screen menu
+    solo_end_menu1 = pg.surface.Surface((resolution[0], resolution[1]), pg.SRCALPHA)
+    solo_end_menu1.fill((gray2[0], gray2[1], gray2[2], 200))
+    solo_end_menu2 = pg.surface.Surface((resolution[0]*.6, resolution[1]*.6), pg.SRCALPHA)
+    solo_end_menu2.fill((dkgray1[0], dkgray1[1], dkgray1[2], 240))
+    back_to_main_btn = Button(300, 450, '_assets/main_btn.png', scale)
 
     # options state -- read from a settings file
-    # sound sliders (bgm, sfx)
-    # video settings
-
-    # make the deck
-    deck_group = makedeck()
-    deck = deck_group.sprites()  # list of card classes (the deck)
-    for sd in range(0, 100):
-        shuffle(deck)
-
-    # set up the table
-    size = 12  # initially 12 cards
-    table_group = pg.sprite.Group()
-    table = table_group.sprites()  # table cards as a list
-
-    # set up discard
-    discard_group = pg.sprite.Group()
-    discard = discard_group.sprites()  # list of cards in the discard pile
+        # sound sliders (bgm, sfx)
+        # video settings
 
     # game state variables
     run = True
@@ -235,184 +229,295 @@ if __name__ == "__main__":
     gamemode_solo = False
     solo_endscreen = False
     gamemode_multi = False
-    deal = True
     selected_cards = []
     set_call = False
     selections_to_cards = []
     collected_sets = 0
     clean_up = False
+    end_bg = True
+
+    debug_short_deck = False
 
     # main loop
     while run:
-        # always fill the screen--helps clean up remaining artifacts
-        screen.fill(gray2)
 
         # game states
         if main_menu:
+            # fill the screen
+            screen.fill(gray2)
             # splash
             screen.blit(splash, (235, 150, 636, 232))
+            time.sleep(.15)
             # 4 buttons
-            if solo_btn.draw():  # solo game
+            # solo game
+            if solo_btn.draw():
+                # make the deck
+                deck_group = makedeck()
+                deck = deck_group.sprites()  # list of card classes (the deck)
+                for sd in range(0, 30):
+                    shuffle(deck)
+                if debug_short_deck:
+                    for i in range(0, 69):
+                        deck.pop(0)
+
+                # set up the table group
+                size = 12  # initially 12 cards
+                table_group = pg.sprite.Group()
+                table = table_group.sprites()  # table cards as a list
+
+                # set up discard group
+                discard_group = pg.sprite.Group()
+                discard = discard_group.sprites()  # list of cards in the discard pile
+
+                # game state vars
+                run = True
                 main_menu = False
+                game_clock = 0
                 gamemode_solo = True
-            if multi_btn.draw():  # add multiplayer in later
+                solo_endscreen = False
+                gamemode_multi = False
+                selected_cards = []
+                set_call = False
+                selections_to_cards = []
+                collected_sets = 0
+                clean_up = False
+                end_bg = True
+
+            # add multiplayer in later
+            if multi_btn.draw():
+                run = True
                 main_menu = False
+                game_clock = 0
+                gamemode_solo = False
+                solo_endscreen = False
                 gamemode_multi = True
+                selected_cards = []
+                set_call = False
+                selections_to_cards = []
+                collected_sets = 0
+                clean_up = False
+                end_bg = True
+
+            # exit button
             if exit_btn.draw():
                 run = False
                 pg.quit()
                 quit()
+
+            # settings button
             if opt_btn.draw():
                 main_menu = False
                 settings = True
 
         elif gamemode_solo:
 
-            # mat for cards -- adjusts to size
-            screen.blit(mat, (card_x-pad, 2*card_y-pad, 4*pad+3*card_x, 5*pad+4*card_y))
-            # mouse pos
-            screen.blit(pg.font.Font.render(pixel_font, str(pg.mouse.get_pos()), 0, ltgray1),
-                        (2, resolution[1]-28))
-            # timer
-            game_clock += float(clock.get_time())/1000
-            game_clock_min = round(game_clock/60)
-            game_clock_sec = round(game_clock % 60)
-            screen.blit(pg.font.Font.render(pixel_font, 'Game Time:  ' + str(game_clock_min) + ':' + str(game_clock_sec),
-                                            0, ltgray1), (2*card_x+1.5*pad, card_y-pad))
-            # points
-            screen.blit(pg.font.Font.render(pixel_font, ('Points:  '+str(collected_sets)), 0, ltgray1),
-                        (2*card_x+1.5*pad, card_y+2*pad, 0, 0))
-
-            # add size# of cards to table group
-            try:
-                for t in range(0, size):
-                    deck[t].add(table_group)
-                table = table_group.sprites()  # table cards as a list
-            except IndexError:
-                for t in range(0, len(deck)):
-                    deck[t].add(table_group)
-                table = table_group.sprites()  # table cards as a list
-            else:
-                for t in range(0, size):
-                    deck[t].add(table_group)
-                table = table_group.sprites()  # table cards as a list
-
-            # check for sets in table group
-            sets = findsets(table)
-            num_sets = len(sets)
-            if num_sets < 1:
-                size += 3
-            num_sets_txt = pg.font.Font.render(pixel_font,
-                                               'Sets on table: ' + str(num_sets),
-                                               0,
-                                               ltgray1)
-            screen.blit(num_sets_txt, (6*pad+4*card_x, 3*card_y+pad, 0, 0))
-
-            # place cards on screen
-            t = 0
-            x, y = card_x, 2*card_y
-            for r in range(0, int(size/3)):
-                for c in range(0, 3):
-                    # draw cards
+            # end screen
+            if solo_endscreen:
+                if end_bg:  # run once
+                    # nice bg
+                    screen.blit(solo_end_menu1, (0, 0, 0, 0))
+                    screen.blit(solo_end_menu2, (resolution[0]*.2, resolution[1]*.2, 0, 0))
+                    # load highscore from file
                     try:
-                        screen.blit(table[t].image, (x, y, card_x, card_y))
-                    except IndexError: #this is to handle when the deck is running out of cards
-                        screen.blit(blank_card, (x, y, card_x, card_y))
+                        with open('highscores_solo.txt', 'r') as hs:
+                            highscore = hs.readlines()[-1].split(',')[-1]
+                    except:
+                        hs = open('highscores_solo.txt', 'x')
+                        hs.close()
+                        highscore = 0
+                    else:
+                        with open('highscores_solo.txt', 'r') as hs:
+                            highscore = hs.readlines()[-1].split(',')[-1]
+                    end_bg = False
 
-                    # enable selection buttons
-                    select_btns[t].enable = True
-                    if select_btns[t].draw():  # basically on click stuff
-                        if set_call:
-                            if not select_btns[t].view:
-                                select_btns[t].view = True
-                                selected_cards.append(select_btns[t])
-                                if len(selected_cards) > 3:  # limit to 3 selected
-                                    select_btns[select_btns.index(selected_cards[0])].view = False
-                                    selected_cards.pop(0)
-                            elif select_btns[t].view:  # deselect
-                                select_btns[t].view = False
-                                selected_cards.remove(select_btns[t])
-                    # increment
-                    x += card_x + pad
-                    t += 1  # counter
-                x = card_x
-                y += card_y + pad
+                else:  # actual end screen
+                    screen.blit(pg.font.Font.render(pixel_font_big, 'FINISH!',
+                                                    0, ltgray1), (300, 150))
+                    screen.blit(pg.font.Font.render(pixel_font,
+                                                    'Score = ' + str(collected_sets) + ' pts',
+                                                    0, ltgray1), (300, 250))
+                    screen.blit(pg.font.Font.render(pixel_font,
+                                                    'Time = ' + str(game_clock_min) + ' minutes' +
+                                                    str(game_clock_sec) + ' seconds',
+                                                    0, ltgray1), (300, 275))
+                    screen.blit(pg.font.Font.render(pixel_font,
+                                                    'Score / Time = ' + str(
+                                                        round(collected_sets / game_clock * 60, 3)) + ' pts/min',
+                                                    0, ltgray1), (300, 300))
+                    screen.blit(pg.font.Font.render(pixel_font,
+                                                    'Highscore = ' + str(highscore) + ' pts/sec',
+                                                    0, ltgray1), (300, 350))
+                    if round(collected_sets / game_clock * 60, 3) > round(float(highscore), 3):
+                        screen.blit(pg.font.Font.render(pixel_font,
+                                                        'New Highscore! ' +
+                                                        str(round(collected_sets / game_clock * 60, 3)) + ' pts/sec',
+                                                        0, ltgray1), (300, 375))
+                        screen.blit(pg.font.Font.render(pixel_font,
+                                                        "            *** Click 'Menu' to save your score! ***",
+                                                        0, ltgray1), (300, 400))
 
-            # set_call_btn
-            if set_call_btn.draw():  # SET called on click
-                set_call = True  # enable selecting cards
-                set_call_time = 12  # idk like 12 sec?
-                # start timer
-                # select 3 cards
-            # check set
-            if set_call:
-                # set_call timer
-                set_call_time -= float(clock.get_time())/1000
-                screen.blit(pg.font.Font.render(pixel_font, str(round(set_call_time, 1)), 0, ltgray1),
-                            (4*card_x+4*pad+2*pad, card_y+2*pad))
-                if set_call_time <= 0:
-                    pass
+                    if back_to_main_btn.draw():  # main btn
+                        # new highscore, add to txt file
+                        with open('highscores_solo.txt', 'a') as hs:
+                            scoreline = [str(time.strftime("%d %b %Y %H:%M:%S")), str(collected_sets),
+                                         str(round(game_clock, 3)), str(round(collected_sets / game_clock, 3))]
+                            hs.write('\n'+','.join(scoreline))
 
-                # select 3 and check
-                if set_check_btn.draw() and len(selected_cards) == 3:  # click to confirm selected cards
-                    # convert select_btn to card
-                    selections_to_cards.append(table[select_btns.index(selected_cards[0])])
-                    selections_to_cards.append(table[select_btns.index(selected_cards[1])])
-                    selections_to_cards.append(table[select_btns.index(selected_cards[2])])
-                    print(num_sets)
-                    pprint.pprint(sets)
-                    print(len(table))
-                    pprint.pprint(table)
-                    print(len(deck))
+                        solo_endscreen = False
+                        gamemode_solo = False
+                        main_menu = True
 
-                    if len(findsets(selections_to_cards)) > 0:  # correct :)
-                        collected_sets += 1
-                        # add to discard & remove from table and deck
-                        for card in selections_to_cards:
-                            discard_group.add(card)
-                            table_group.empty()
-                            deck_group.remove(card)
-                            deck.remove(card)
+            # run the game
+            else:
+                # fill the screen
+                screen.fill(gray2)
 
-                        # update lists
-                        discard = discard_group.sprites()
-                        table = table_group.sprites()
-                        # don't update deck bc it was keeping the og order and reshuffling would mess up the table
+                # mouse pos
+                screen.blit(pg.font.Font.render(pixel_font, str(pg.mouse.get_pos()), 0, ltgray1),
+                            (2, resolution[1] - 28))
+                # timer
+                game_clock += float(clock.get_time()) / 1000
+                game_clock_min = round(game_clock / 60)
+                game_clock_sec = round(game_clock % 60)
+                screen.blit(
+                    pg.font.Font.render(pixel_font, 'Game Time:  ' + str(game_clock_min) + ':' + str(game_clock_sec),
+                                        0, ltgray1), (2 * card_x + 1.5 * pad, card_y - pad))
+                # points
+                screen.blit(pg.font.Font.render(pixel_font, ('Points:  ' + str(collected_sets)), 0, ltgray1),
+                            (2 * card_x + 1.5 * pad, card_y + 2 * pad, 0, 0))
 
-                        # reset size
-                        size = 12
+                # add size# of cards to table group
+                try:
+                    for t in range(0, size):
+                        deck[t].add(table_group)
+                    table = table_group.sprites()  # table cards as a list
+                except IndexError:
+                    for t in range(0, len(deck)):  # just add the remainder of the deck
+                        deck[t].add(table_group)
+                    table = table_group.sprites()
+                else:
+                    for t in range(0, size):
+                        deck[t].add(table_group)
+                    table = table_group.sprites()
+                # mat for cards -- adjusts to size
+                mat = pg.Surface((4 * pad + 3 * card_x, (size / 3 + 1) * pad + (size / 3) * card_y))
+                mat.fill(gray1)
+                screen.blit(mat, (card_x - pad, 2 * card_y - pad, 4 * pad + 3 * card_x, 5 * pad + 4 * card_y))
 
-                        # clean up / prep for next
-                        clean_up = True
+                # check for sets in table group
+                sets = findsets(table)
+                num_sets = len(sets)
+                if num_sets == 0 and size <= 18 and len(table) >= 12:
+                    size += 3
+                elif len(table) <= 12 and num_sets == 0:  # end condition solo
+                    solo_endscreen = True
 
-                    else:  # not a set :(
-                        collected_sets -= 1
-                        # clean up / prep for next
-                        clean_up = True
+                # num sets label
+                num_sets_txt = pg.font.Font.render(pixel_font, 'Sets on table: ' + str(num_sets), 0, ltgray1)
+                screen.blit(num_sets_txt, (6*pad+4*card_x, 3*card_y+pad, 0, 0))
 
-                    # clean up / prep for next -- regardless of correct or not
-                    if clean_up:
-                        # remove all from convert list
-                        selections_to_cards = []
+                # place cards on screen
+                t = 0
+                x, y = card_x, 2*card_y
+                for r in range(0, int(size/3)):
+                    for c in range(0, 3):
+                        # draw cards
+                        try:
+                            screen.blit(table[t].image, (x, y, card_x, card_y))
+                        except IndexError:  # this is to handle when the deck is running out of cards
+                            screen.blit(blank_card, (x, y, card_x, card_y))
 
-                        # deselect cards
-                        select_btns[select_btns.index(selected_cards[0])].view = False
-                        select_btns[select_btns.index(selected_cards[1])].view = False
-                        select_btns[select_btns.index(selected_cards[2])].view = False
-                        selected_cards = []
+                        # enable selection buttons
+                        select_btns[t].enable = True
+                        if select_btns[t].draw():  # basically on click stuff
+                            if set_call:  # only view if set called button clicked
+                                if not select_btns[t].view:
+                                    select_btns[t].view = True
+                                    selected_cards.append(select_btns[t])
+                                    if len(selected_cards) > 3:  # limit to 3 selected
+                                        select_btns[select_btns.index(selected_cards[0])].view = False
+                                        selected_cards.pop(0)
+                                elif select_btns[t].view:  # deselect
+                                    select_btns[t].view = False
+                                    selected_cards.remove(select_btns[t])
+                        # increment
+                        x += card_x + pad
+                        t += 1  # counter
+                    x = card_x
+                    y += card_y + pad
 
-                        # done! back to game
-                        set_call = False
-                        clean_up = False
+                # set_call_btn
+                if set_call_btn.draw():  # SET called on click
+                    set_call = True  # enable selecting cards
+                    set_call_time = 10  # idk like 10 sec?
+                    # start timer
+                    # select 3 cards
 
-            # end condition solo
-            if len(deck) == 0 and num_sets == 0:
-                solo_endscreen = True
+                # check set
+                if set_call:
+                    # set_call timer
+                    set_call_time -= float(clock.get_time())/1000
+                    screen.blit(pg.font.Font.render(pixel_font, str(round(set_call_time, 1)), 0, ltgray1),
+                                (4*card_x+4*pad+2*pad, card_y+2*pad))
+                    if set_call_time <= 0:
+                        pass
 
-                # high score = #sets/time = ##.# sets/minute
+                    # select 3 and check
+                    if set_check_btn.draw() and len(selected_cards) == 3:  # click to confirm selected cards
+                        # convert select_btn to card
+                        selections_to_cards.append(table[select_btns.index(selected_cards[0])])
+                        selections_to_cards.append(table[select_btns.index(selected_cards[1])])
+                        selections_to_cards.append(table[select_btns.index(selected_cards[2])])
+                        print(num_sets)
+                        pprint.pprint(sets)
+                        print(len(table))
+                        pprint.pprint(table)
+                        print(len(deck))
+
+                        if len(findsets(selections_to_cards)) > 0:  # correct :)
+                            collected_sets += 1
+                            # add to discard & remove from table and deck
+                            for card in selections_to_cards:
+                                discard_group.add(card)
+                                table_group.empty()
+                                deck_group.remove(card)
+                                deck.remove(card)
+
+                            # update lists
+                            discard = discard_group.sprites()
+                            table = table_group.sprites()
+                            # don't update deck bc it was keeping the og order and reshuffling would mess up the table
+
+                            # reset size
+                            size = 12
+
+                            # clean up / prep for next
+                            clean_up = True
+
+                        else:  # not a set :(
+                            collected_sets -= 1
+                            # clean up / prep for next
+                            clean_up = True
+
+                        # clean up / prep for next -- regardless of correct or not
+                        if clean_up:
+                            # remove all from convert list
+                            selections_to_cards = []
+
+                            # deselect cards
+                            select_btns[select_btns.index(selected_cards[0])].view = False
+                            select_btns[select_btns.index(selected_cards[1])].view = False
+                            select_btns[select_btns.index(selected_cards[2])].view = False
+                            selected_cards = []
+
+                            # done! back to game
+                            set_call = False
+                            clean_up = False
 
         # multiplayer
         elif gamemode_multi:
+            # fill the screen
+            screen.fill(gray2)
             # online and local?
             pass
 
