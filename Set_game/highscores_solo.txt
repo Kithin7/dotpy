@@ -1,1 +1,6 @@
-26 Nov 2023 23:10:03,2,8.636,0.001
+date & time, points, seconds, points/minute (highscore)
+26 Nov 2023 23:10:03,0,0,0.000
+27 Nov 2023 19:03:44,25,751.898,1.980
+29 Nov 2023 19:32:23,25 points,203.124 seconds,7.380
+debug,29 Nov 2023 21:21:11,1 points,33.725 seconds,1.779
+debug,29 Nov 2023 21:22:04,3 points,15.26 seconds,11.796

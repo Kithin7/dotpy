@@ -44,6 +44,49 @@ class Button:
             return False
 
 
+class Slider:
+    """horizontal slider. Returns a slider class obj."""
+    def __init__(self, window, x:int, y:int, lower_val:float, upper_val:float, height:int, initial:float, bar_color:tuple, handle_color:tuple):
+        self.window = window
+        self.x = x
+        self.y = y
+        self.lower = lower_val
+        self.upper = upper_val
+        self.height = height
+        self.initial = initial
+
+        self.bar_color = bar_color
+        self.handle_color = handle_color
+
+        length = self.upper - self.lower
+        self.handle_rect = pg.rect.Rect(self.x + self.initial, self.y, length * 0.15, self.y + self.height)
+
+
+    def draw(self):
+        length = self.upper - self.lower
+
+        # draw the bar (range)
+        bar = pg.surface.Surface((self.upper - self.lower, self.height))
+        bar.fill(self.bar_color)
+        self.window.blit(bar, (self.x, self.y,))
+
+        # draw the handle (value)
+        handle = pg.surface.Surface((self.handle_rect[2], self.height))
+        handle.fill(self.handle_color)
+        self.window.blit(handle, self.handle_rect)
+
+    def move(self):
+        # mouse pos
+        pos = pg.mouse.get_pos()
+
+        # mouse on handle
+        if self.handle_rect.collidepoint(pos):
+            print('on')
+
+    def value(self):
+        loc = handle.get_rect()
+
+
 class Card(pg.sprite.Sprite):
     """Card obj to hold all info about the card."""
     def __init__(self, number, fill, color, shape):
@@ -159,7 +202,15 @@ if __name__ == "__main__":
     dkgray1 = (49, 51, 53)
     dkgray2 = (43, 43, 43)
     black = (0, 0, 0)
+    green = (20, 167, 80)
+    red = (234, 28, 45)
+    purple = (97, 51, 148)
+    blue = (27, 102, 232)
+    yellow = (244, 180, 27)
+    blue2 = (72, 136, 186)
+    yellow2 = (255, 232, 115)
 
+    # fonts
     pixel_font = pg.font.SysFont('Celtic Time', 32)
     pixel_font_big = pg.font.SysFont('Celtic Time', 120)
 
@@ -170,7 +221,7 @@ if __name__ == "__main__":
     pad = 2.5 * scale  # 10 was working well
 
     # game run stuff
-    resolution = (1100, 800)
+    resolution = (1100, 800)  # 1100, 800
     fps = 60
     screen = pg.display.set_mode(resolution)
     clock = pg.time.Clock()
@@ -197,20 +248,21 @@ if __name__ == "__main__":
     blank_card.fill(gray1)
     # setting up the selection buttons
     select_img = '_assets/select_frame.png'
-    select_btns = []
+    select_btns = []  # list of the selection buttons
     x, y = card_x-8, 2*card_y-8
-    for r in range(0, 6):  # only setting up 18 select buttons
+    for r in range(0, 6):  # only setting up 18 select buttons bc it's unlikely to need more
         for c in range(0, 3):
             select_btns.append(Button(x, y, select_img, scale))
             select_btns[len(select_btns)-1].enable = False
             select_btns[len(select_btns)-1].view = False
             # increment
             x += card_x+8 + pad-8
-
         x = card_x-8
         y += card_y + pad
     set_call_btn = Button(4*card_x+4*pad+2*pad, 2*card_y-pad, '_assets/set_call_btn.png', scale/2)
     set_check_btn = Button(4 * card_x + 4 * pad + 2 * pad, 2 * card_y - pad, '_assets/set_check_btn.png', scale / 2)
+    # game time loc
+    clock_loc = (2 * card_x - 3 * pad, card_y - pad)
     # end screen menu
     solo_end_menu1 = pg.surface.Surface((resolution[0], resolution[1]), pg.SRCALPHA)
     solo_end_menu1.fill((gray2[0], gray2[1], gray2[2], 200))
@@ -221,34 +273,50 @@ if __name__ == "__main__":
     # options state -- read from a settings file
         # sound sliders (bgm, sfx)
         # video settings
+    bgm_slider = Slider(screen, int(resolution[0] * 0.3), int(resolution[1] * 0.4), 0, 100, 25, 50, gray1, green)
+    sfx_slider = Slider(screen, int(resolution[0] * 0.3), int(resolution[1] * 0.45), 0, 100, 25, 50, gray1, red)
+    call_time_slider = Slider(screen, int(resolution[0] * 0.3), int(resolution[1] * 0.50), 0, 100, 25, 50, gray1, purple)
+    settings_to_main_btn = Button(int(resolution[0] * 0.3), int(resolution[1] * 0.55), '_assets/main_btn.png', scale)
 
     # game state variables
     run = True
     main_menu = True
+    settings = False
     game_clock = 0
+    show_num_sets = False
     gamemode_solo = False
     solo_endscreen = False
     gamemode_multi = False
+    gamemode_multi_local = False
+    gamemode_multi_online = False
     selected_cards = []
     set_call = False
+    set_call_time_master = 10
     selections_to_cards = []
     collected_sets = 0
     clean_up = False
     end_bg = True
-
-    debug_short_deck = False
+    # debug
+    debug_short_deck = True
+    debug_show_mouse_pos = False
+    debug_printout = False
 
     # main loop
     while run:
-
         # game states
+        # main menu
         if main_menu:
             # fill the screen
             screen.fill(gray2)
             # splash
             screen.blit(splash, (235, 150, 636, 232))
-            time.sleep(.15)
             # 4 buttons
+            # settings button
+            if opt_btn.draw():
+                settings = True
+                main_menu = False
+                time.sleep(.1)
+
             # solo game
             if solo_btn.draw():
                 # make the deck
@@ -283,9 +351,10 @@ if __name__ == "__main__":
                 clean_up = False
                 end_bg = True
 
+                time.sleep(.1)
+
             # add multiplayer in later
             if multi_btn.draw():
-                run = True
                 main_menu = False
                 game_clock = 0
                 gamemode_solo = False
@@ -297,6 +366,7 @@ if __name__ == "__main__":
                 collected_sets = 0
                 clean_up = False
                 end_bg = True
+                time.sleep(.1)
 
             # exit button
             if exit_btn.draw():
@@ -304,11 +374,21 @@ if __name__ == "__main__":
                 pg.quit()
                 quit()
 
-            # settings button
-            if opt_btn.draw():
-                main_menu = False
-                settings = True
+        # settings menu
+        elif settings:
+            # fill the screen
+            screen.fill(gray2)
+            # sliders
+            bgm_slider.draw()
+            sfx_slider.draw()
+            call_time_slider.draw()
+            # back to menu
+            if settings_to_main_btn.draw():
+                main_menu = True
+                settings = False
+                time.sleep(.1)
 
+        # solo play
         elif gamemode_solo:
 
             # end screen
@@ -318,16 +398,25 @@ if __name__ == "__main__":
                     screen.blit(solo_end_menu1, (0, 0, 0, 0))
                     screen.blit(solo_end_menu2, (resolution[0]*.2, resolution[1]*.2, 0, 0))
                     # load highscore from file
+                    first_line = 'date & time, points, seconds, points/minute (highscore)'
                     try:
                         with open('highscores_solo.txt', 'r') as hs:
                             highscore = hs.readlines()[-1].split(',')[-1]
                     except:
                         hs = open('highscores_solo.txt', 'x')
+                        hs.write(first_line)
                         hs.close()
                         highscore = 0
                     else:
+                        highscore = 0
                         with open('highscores_solo.txt', 'r') as hs:
-                            highscore = hs.readlines()[-1].split(',')[-1]
+                            line = hs.readline()  # read first line and skip
+                            while not line:  # loop to find highscore, although it should only be a highscore at the end...
+                                line = hs.readline()
+                                if 'debug' in line.split(',')[0]:
+                                    pass
+                                elif highscore < float(line.split(',')[-1].rstrip('\n')):
+                                    highscore = float(line.split(',')[-1].rstrip('\n'))
                     end_bg = False
 
                 else:  # actual end screen
@@ -337,7 +426,7 @@ if __name__ == "__main__":
                                                     'Score = ' + str(collected_sets) + ' pts',
                                                     0, ltgray1), (300, 250))
                     screen.blit(pg.font.Font.render(pixel_font,
-                                                    'Time = ' + str(game_clock_min) + ' minutes' +
+                                                    'Time = ' + str(game_clock_min) + ' minutes ' +
                                                     str(game_clock_sec) + ' seconds',
                                                     0, ltgray1), (300, 275))
                     screen.blit(pg.font.Font.render(pixel_font,
@@ -345,12 +434,12 @@ if __name__ == "__main__":
                                                         round(collected_sets / game_clock * 60, 3)) + ' pts/min',
                                                     0, ltgray1), (300, 300))
                     screen.blit(pg.font.Font.render(pixel_font,
-                                                    'Highscore = ' + str(highscore) + ' pts/sec',
+                                                    'Highscore = ' + str(highscore) + ' pts/min',
                                                     0, ltgray1), (300, 350))
                     if round(collected_sets / game_clock * 60, 3) > round(float(highscore), 3):
                         screen.blit(pg.font.Font.render(pixel_font,
                                                         'New Highscore! ' +
-                                                        str(round(collected_sets / game_clock * 60, 3)) + ' pts/sec',
+                                                        str(round(collected_sets / game_clock * 60, 3)) + ' pts/min',
                                                         0, ltgray1), (300, 375))
                         screen.blit(pg.font.Font.render(pixel_font,
                                                         "            *** Click 'Menu' to save your score! ***",
@@ -359,13 +448,24 @@ if __name__ == "__main__":
                     if back_to_main_btn.draw():  # main btn
                         # new highscore, add to txt file
                         with open('highscores_solo.txt', 'a') as hs:
-                            scoreline = [str(time.strftime("%d %b %Y %H:%M:%S")), str(collected_sets),
-                                         str(round(game_clock, 3)), str(round(collected_sets / game_clock, 3))]
-                            hs.write('\n'+','.join(scoreline))
+                            if not debug_short_deck:
+                                scoreline = [str(time.strftime("%d %b %Y %H:%M:%S")),
+                                             str(collected_sets) + ' points',
+                                             str(round(game_clock, 3)) + ' seconds',
+                                             str(round(collected_sets / game_clock * 60, 3))]
+                                hs.write('\n'+','.join(scoreline))
+                            else:
+                                scoreline = [str('debug'),
+                                             str(time.strftime("%d %b %Y %H:%M:%S")),
+                                             str(collected_sets) + ' points',
+                                             str(round(game_clock, 3)) + ' seconds',
+                                             str(round(collected_sets / game_clock * 60, 3))]
+                                hs.write('\n' + ','.join(scoreline))
 
                         solo_endscreen = False
                         gamemode_solo = False
                         main_menu = True
+                        time.sleep(.1)
 
             # run the game
             else:
@@ -373,16 +473,31 @@ if __name__ == "__main__":
                 screen.fill(gray2)
 
                 # mouse pos
-                screen.blit(pg.font.Font.render(pixel_font, str(pg.mouse.get_pos()), 0, ltgray1),
-                            (2, resolution[1] - 28))
+                if debug_show_mouse_pos:
+                    screen.blit(pg.font.Font.render(pixel_font, str(pg.mouse.get_pos()), 0, ltgray1),
+                                (2, resolution[1] - 28))
+
                 # timer
                 game_clock += float(clock.get_time()) / 1000
                 game_clock_min = round(game_clock / 60)
                 game_clock_sec = round(game_clock % 60)
-                screen.blit(
-                    pg.font.Font.render(pixel_font, 'Game Time:  ' + str(game_clock_min) + ':' + str(game_clock_sec),
-                                        0, ltgray1), (2 * card_x + 1.5 * pad, card_y - pad))
-                # points
+                if game_clock_sec < 10 and game_clock_min < 10:
+                    screen.blit(pg.font.Font.render(pixel_font, 'Game Time:  0' +
+                                                    str(game_clock_min) + ':0' + str(game_clock_sec), 0, ltgray1),
+                                clock_loc)
+                elif game_clock_sec < 10 and not game_clock_min < 10:
+                    screen.blit(pg.font.Font.render(pixel_font, 'Game Time:  ' +
+                                                    str(game_clock_min) + ':0' + str(game_clock_sec), 0, ltgray1),
+                                clock_loc)
+                elif not game_clock_sec < 10 and game_clock_min < 10:
+                    screen.blit(pg.font.Font.render(pixel_font, 'Game Time:  0' +
+                                                    str(game_clock_min) + ':' + str(game_clock_sec), 0, ltgray1),
+                                clock_loc)
+                else:
+                    screen.blit(pg.font.Font.render(pixel_font, 'Game Time:  ' +
+                                                    str(game_clock_min) + ':' + str(game_clock_sec), 0, ltgray1),
+                                clock_loc)
+                # points text
                 screen.blit(pg.font.Font.render(pixel_font, ('Points:  ' + str(collected_sets)), 0, ltgray1),
                             (2 * card_x + 1.5 * pad, card_y + 2 * pad, 0, 0))
 
@@ -413,8 +528,9 @@ if __name__ == "__main__":
                     solo_endscreen = True
 
                 # num sets label
-                num_sets_txt = pg.font.Font.render(pixel_font, 'Sets on table: ' + str(num_sets), 0, ltgray1)
-                screen.blit(num_sets_txt, (6*pad+4*card_x, 3*card_y+pad, 0, 0))
+                if show_num_sets:
+                    num_sets_txt = pg.font.Font.render(pixel_font, 'Sets on table: ' + str(num_sets), 0, ltgray1)
+                    screen.blit(num_sets_txt, (6*pad+4*card_x, 3*card_y+pad, 0, 0))
 
                 # place cards on screen
                 t = 0
@@ -447,20 +563,27 @@ if __name__ == "__main__":
                     y += card_y + pad
 
                 # set_call_btn
-                if set_call_btn.draw():  # SET called on click
+                if set_call_btn.draw() and not set_call:  # SET called on click & lock out clicking again
                     set_call = True  # enable selecting cards
-                    set_call_time = 10  # idk like 10 sec?
+                    set_call_time = set_call_time_master  # idk like 10 sec?
                     # start timer
                     # select 3 cards
 
-                # check set
+                # SET called, so now...
                 if set_call:
                     # set_call timer
                     set_call_time -= float(clock.get_time())/1000
                     screen.blit(pg.font.Font.render(pixel_font, str(round(set_call_time, 1)), 0, ltgray1),
                                 (4*card_x+4*pad+2*pad, card_y+2*pad))
+
+                    # time up!
                     if set_call_time <= 0:
-                        pass
+                        # lose a point
+                        collected_sets -= 1
+                        # reset the clock
+                        set_call_time = set_call_time_master
+                        # trigger clean up
+                        clean_up = True
 
                     # select 3 and check
                     if set_check_btn.draw() and len(selected_cards) == 3:  # click to confirm selected cards
@@ -468,11 +591,12 @@ if __name__ == "__main__":
                         selections_to_cards.append(table[select_btns.index(selected_cards[0])])
                         selections_to_cards.append(table[select_btns.index(selected_cards[1])])
                         selections_to_cards.append(table[select_btns.index(selected_cards[2])])
-                        print(num_sets)
-                        pprint.pprint(sets)
-                        print(len(table))
-                        pprint.pprint(table)
-                        print(len(deck))
+                        if debug_printout:
+                            print(num_sets)
+                            pprint.pprint(sets)
+                            print(len(table))
+                            pprint.pprint(table)
+                            print(len(deck))
 
                         if len(findsets(selections_to_cards)) > 0:  # correct :)
                             collected_sets += 1
@@ -499,20 +623,19 @@ if __name__ == "__main__":
                             # clean up / prep for next
                             clean_up = True
 
-                        # clean up / prep for next -- regardless of correct or not
-                        if clean_up:
-                            # remove all from convert list
-                            selections_to_cards = []
+                    # clean up / prep for next -- regardless of correct or not
+                    if clean_up:
+                        # remove all from convert list
+                        selections_to_cards = []
 
-                            # deselect cards
-                            select_btns[select_btns.index(selected_cards[0])].view = False
-                            select_btns[select_btns.index(selected_cards[1])].view = False
-                            select_btns[select_btns.index(selected_cards[2])].view = False
-                            selected_cards = []
+                        # deselect cards
+                        for i in range(0, len(selected_cards)):
+                            select_btns[select_btns.index(selected_cards[i])].view = False
+                        selected_cards = []
 
-                            # done! back to game
-                            set_call = False
-                            clean_up = False
+                        # done! back to game
+                        set_call = False
+                        clean_up = False
 
         # multiplayer
         elif gamemode_multi:
